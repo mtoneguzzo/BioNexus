@@ -1,0 +1,33 @@
+//Change id to names. 
+
+MATCH (e:Enzyme)
+SET e.name = e.id
+REMOVE e.id;
+
+MATCH (b:Biome)
+SET b.name = b.id
+REMOVE b.id;
+
+MATCH (ec:EC_Number)
+SET ec.name = ec.id
+REMOVE ec.id;
+
+:style Enzyme { caption: "name" }
+:style Biome { caption: "name" }
+:style EC_Number { caption: "name" }
+
+//
+MATCH (b:Biome)
+WITH b, split(b.name, ":") AS parts
+SET b.short_name = parts[-1];
+
+MATCH (b:Biome)
+SET b.full_name = b.name;
+
+MATCH (b:Biome)
+WITH b, split(b.full_name, ":") AS parts
+SET b.name = parts[size(parts) - 1];
+
+MATCH (b:Biome)
+REMOVE b.short_name;
+

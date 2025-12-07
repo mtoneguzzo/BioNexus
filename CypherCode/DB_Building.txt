@@ -1,0 +1,135 @@
+//Create uniqueness constraints
+
+CREATE CONSTRAINT enzyme_id_unique IF NOT EXISTS
+FOR (e:Enzyme)
+REQUIRE e.id IS UNIQUE;
+
+CREATE CONSTRAINT biome_id_unique IF NOT EXISTS
+FOR (b:Biome)
+REQUIRE b.id IS UNIQUE;
+
+CREATE CONSTRAINT ec_id_unique IF NOT EXISTS
+FOR (ec:EC_Number)
+REQUIRE ec.id IS UNIQUE;
+
+//Load Enzymes and Biomes and créate their relationship
+
+CALL {
+    LOAD CSV FROM 'file:///all_samples.mgyp_biome.thermo.csv' AS row
+    WITH row[0] AS enzyme_id, row[1] AS biome_name
+    WHERE enzyme_id IS NOT NULL AND biome_name IS NOT NULL
+
+    MERGE (e:Enzyme {id: enzyme_id})
+    MERGE (b:Biome {id: biome_name})
+    MERGE (b)-[:HAS_ENZYME]->(e)
+} IN TRANSACTIONS OF 1000 ROWS;
+
+//Adding EC numbers
+
+CALL {
+    LOAD CSV WITH HEADERS FROM 'file:///predictions.csv' AS row
+    WITH row
+    WHERE row.pred_ec <> '0.0.0.0'
+      AND row.seqid IS NOT NULL
+      AND row.pred_ec IS NOT NULL
+
+    MERGE (e:Enzyme {id: row.seqid})
+    MERGE (ec:EC_Number {id: row.pred_ec})
+    MERGE (e)-[:HAS_EC]->(ec)
+} IN TRANSACTIONS OF 1000 ROWS;
+
+//Adding properties to EC-Enzyme relationships
+
+CALL {
+    LOAD CSV WITH HEADERS FROM 'file:///predictions.csv' AS row
+    WITH row
+    WHERE row.pred_ec <> '0.0.0.0'
+      AND row.seqid IS NOT NULL
+      AND row.pred_ec IS NOT NULL
+
+    // Reuse existing nodes (or create if they were missing)
+    MERGE (e:Enzyme {id: row.seqid})
+    MERGE (ec:EC_Number {id: row.pred_ec})
+
+    // Reuse/create the relationship and set properties every time
+    MERGE (e)-[r:HAS_EC]->(ec)
+    SET
+        r.probability  = toFloat(row.probability),
+        r.class_weight = toFloat(row.class_weight),
+        r.rank         = toInteger(row.rank)
+} IN TRANSACTIONS OF 1000 ROWS;
+
+
+//Add thermoprot attributes to enzymes
+
+CALL {
+    LOAD CSV WITH HEADERS FROM 'file:///thermoprot.csv' AS row
+    WITH row
+    WHERE row.Header IS NOT NULL
+
+    // Match existing enzyme by ID
+    MATCH (e:Enzyme {id: row.Header})
+
+    // Add / update thermoprot attributes on the enzyme
+    SET e.Probability_PM  = toFloat(row.Probability_PM),
+        e.Class_PM        = toInteger(row.Class_PM),
+        e.Prediction_PM   = row.Prediction_PM,
+        e.Probability_MT  = toFloat(row.Probability_MT),
+        e.Class_MT        = toInteger(row.Class_MT),
+        e.Prediction_MT   = row.Prediction_MT,
+        e.Probability_TH  = toFloat(row.Probability_TH),
+        e.Class_TH        = toInteger(row.Class_TH),
+        e.Prediction_TH   = row.Prediction_TH,
+        e.Probability_MTH = toFloat(row.Probability_MTH),
+        e.Class_MTH       = toInteger(row.Class_MTH),
+        e.Prediction_MTH  = row.Prediction_MTH,
+        e.Consensus       = row.Consensus
+} IN TRANSACTIONS OF 1000 ROWS;
+
+
+#Change id to names. 
+
+MATCH (e:Enzyme)
+SET e.name = e.id
+REMOVE e.id;
+
+MATCH (b:Biome)
+SET b.name = b.id
+REMOVE b.id;
+
+MATCH (ec:EC_Number)
+SET ec.name = ec.id
+REMOVE ec.id;
+
+:style Enzyme { caption: "name" }
+:style Biome { caption: "name" }
+:style EC_Number { caption: "name" }
+
+#Visualize
+MATCH (b:Biome)-[r1:HAS_ENZYME]->(e:Enzyme)
+OPTIONAL MATCH (e)-[r2:HAS_EC]->(ec:EC_Number)
+WITH b, r1, e, r2, ec
+ORDER BY rand()
+RETURN b, r1, e, r2, ec
+LIMIT 200;
+
+#change biome names
+MATCH (b:Biome)
+WITH b, split(b.name, ":") AS parts
+SET b.short_name = parts[-1];
+
+MATCH (b:Biome)
+SET b.full_name = b.name;
+
+MATCH (b:Biome)
+WITH b, split(b.full_name, ":") AS parts
+SET b.name = parts[size(parts) - 1];
+
+MATCH (b:Biome)
+REMOVE b.short_name;
+
+
+
+
+
+

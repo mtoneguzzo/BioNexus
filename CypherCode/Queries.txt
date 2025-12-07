@@ -1,0 +1,20 @@
+//Queries
+
+//Al mesophilic enzymes in aquatic biomes with EC number 3.1.4.4
+MATCH (b:Biome)
+WHERE b.full_name CONTAINS ":Aquatic:"                         // only aquatic biomes
+
+MATCH (b)-[r1:HAS_ENZYME]->(e:Enzyme)
+WHERE toLower(e.Consensus) = "mesophilic"                // only mesophilic enzymes
+
+MATCH (e)-[r2:HAS_EC]->(ec:EC_Number {name: "3.1.4.4"})  // only EC 3.1.4.4
+
+RETURN b, r1, e, r2, ec;
+
+*****************************************************************************************************************
+//All enzymes in lake with ec number 3.2.2.22
+
+MATCH (b:Biome {full_name: "root:Environmental:Aquatic:Freshwater:Lake"})
+      -[r1:HAS_ENZYME]->(e:Enzyme)
+MATCH (e)-[r2:HAS_EC]->(ec:EC_Number {name: "3.2.2.22"})
+RETURN b, r1, e, r2, ec;
