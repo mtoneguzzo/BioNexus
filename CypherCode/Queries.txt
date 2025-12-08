@@ -1,5 +1,15 @@
 //Queries
 
+// Visualization of 200 random nodes
+MATCH (b:Biome)-[r1:HAS_ENZYME]->(e:Enzyme)
+OPTIONAL MATCH (e)-[r2:HAS_EC]->(ec:EC_Number)
+WITH b, r1, e, r2, ec
+ORDER BY rand()
+RETURN b, r1, e, r2, ec
+LIMIT 200;
+
+*************************************************************************************************************
+
 //Al mesophilic enzymes in aquatic biomes with EC number 3.1.4.4
 MATCH (b:Biome)
 WHERE b.full_name CONTAINS ":Aquatic:"                         // only aquatic biomes
